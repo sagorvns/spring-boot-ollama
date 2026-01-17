@@ -1,0 +1,202 @@
+## ✅ Interview Question
+
+**“Design a system like ChatGPT — a conversational AI platform that supports multiple users chatting with an AI assistant in real time.”**
+
+---
+
+## ✅ 1. Requirements
+
+### 🔹 Functional Requirements:
+
+* Users can send messages to an AI assistant.
+* AI responds to the messages based on context.
+* Support for multi-user conversations.
+* Maintain conversation history.
+* Show typing indicator / response time.
+* Handle concurrent requests efficiently.
+
+### 🔹 Non-Functional Requirements:
+
+* Low latency responses.
+* Scalable to millions of users.
+* Secure (auth, rate limiting).
+* High availability and fault-tolerance.
+
+---
+
+## ✅ 2. High-Level System Design
+
+```
+              +-------------+
+   Client --->| API Gateway |<--------------+
+              +------+------+               |
+                     |                      |
+              +------+------++              |
+              |   Auth Service ||            |
+              +------------+  ||            |
+                               ||            |
+           +----------------+  ||            |
+           | Chat Service   |<--+             |
+           +-------+--------+                |
+                   |                         |
+       +-----------v------------+            |
+       | Context + History Store |<----+     |
+       +-----------+------------+     |     |
+                   |                  |     |
+        +----------v----------+       |     |
+        |    Inference Layer  |<------+     |
+        +----------+----------+             |
+                   |                        |
+        +----------v----------+             |
+        | LLM Engine (e.g. GPT) |<----------+
+        +----------------------+
+
+```
+
+---
+
+## ✅ 3. Component Breakdown
+
+### 🧩 1. **API Gateway**
+
+* Handles requests from frontend clients.
+* Performs rate limiting, routing, basic auth forwarding.
+
+### 🧩 2. **Authentication Service**
+
+* JWT-based auth for users.
+* OAuth integration (Google, GitHub, etc.)
+
+### 🧩 3. **Chat Service**
+
+* Handles incoming messages.
+* Fetches context/history.
+* Sends request to inference layer.
+* Receives and formats response.
+
+### 🧩 4. **Context Store**
+
+* Stores chat history (user\_id, messages, timestamps).
+* NoSQL (like MongoDB or DynamoDB) preferred for quick read/writes.
+
+### 🧩 5. **Inference Layer**
+
+* Formats messages and context for model input.
+* May include token counting, prompt formatting.
+* Queues request for inference (Kafka or Redis queue).
+
+### 🧩 6. **LLM Engine**
+
+* GPT model hosted on a **model server** (like OpenAI, or custom deployment via HuggingFace).
+* Can use OpenAI’s APIs or internal large language model.
+
+---
+
+## ✅ 4. Tech Stack (Backend)
+
+| Layer            | Tech Options                           |
+| ---------------- | -------------------------------------- |
+| API Gateway      | NGINX, Spring Cloud Gateway            |
+| Auth Service     | Spring Security + JWT / OAuth          |
+| Chat Service     | Spring Boot (Reactive)                 |
+| Context Store    | MongoDB / DynamoDB                     |
+| Queue (optional) | Kafka / Redis PubSub                   |
+| Inference        | Python FastAPI / Flask (calls LLM API) |
+| LLM              | OpenAI GPT, HuggingFace Transformers   |
+| Deployment       | Kubernetes + Docker                    |
+| Load Balancing   | NGINX / AWS ALB                        |
+
+---
+
+## ✅ 5. Database Schema (MongoDB-style)
+
+```json
+{
+  "userId": "abc123",
+  "conversations": [
+    {
+      "chatId": "chat001",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi, who are you?",
+          "timestamp": "2025-07-25T10:30:00Z"
+        },
+        {
+          "role": "assistant",
+          "content": "I'm ChatGPT, your AI assistant.",
+          "timestamp": "2025-07-25T10:30:01Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## ✅ 6. Common Interview Cross-Questions & Answers
+
+### ❓Q1: How do you ensure low latency?
+
+✅ A:
+
+* Use caching at inference/preprocessing.
+* Maintain warm LLM sessions.
+* Use GPU acceleration for inference.
+* Batch small requests if needed.
+
+---
+
+### ❓Q2: How would you scale this system?
+
+✅ A:
+
+* Horizontally scale chat services and inference layers.
+* Use async queues (Kafka) to decouple API & model.
+* Use CDN for static resources.
+* Use autoscaling in Kubernetes.
+
+---
+
+### ❓Q3: What if multiple users spam the system?
+
+✅ A:
+
+* Use API Gateway rate limiting (IP-based, user-based).
+* Token bucket or leaky bucket algorithms.
+* Temporarily throttle abusive users.
+
+---
+
+### ❓Q4: How would you handle long conversations?
+
+✅ A:
+
+* Use token limit-aware truncation of context.
+* Store older messages in cold storage (S3).
+* Keep most recent N messages in memory.
+
+---
+
+### ❓Q5: How would you make it secure?
+
+✅ A:
+
+* HTTPS for transport security.
+* JWT tokens for auth.
+* Input sanitization to prevent prompt injection.
+* Audit logs and alerting for abnormal use.
+
+---
+
+## ✅ 7. Final Notes for Quick Revision
+
+| Topic        | Key Points                                             |
+| ------------ | ------------------------------------------------------ |
+| Users        | JWT Auth, Session-based messages                       |
+| Chat History | NoSQL (MongoDB), store user\_id + messages             |
+| Inference    | API layer to call LLM like GPT                         |
+| Performance  | GPU-backed LLM, context window management              |
+| Security     | Rate limiting, token auth, prompt injection prevention |
+| Scaling      | Kubernetes pods for chat/inference, async queuing      |

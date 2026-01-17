@@ -1,0 +1,167 @@
+## 1. Requirements & Assumptions
+
+### Functional
+
+* 1‑on‑1 chat and group chat
+* Message delivery statuses: sent, delivered, read
+* Offline message storage and push notifications
+* Media/file sharing (images, audio, documents)
+* User presence (online/offline, last seen)
+
+### Non‑Functional
+
+* High scalability, low latency (<100 ms)
+* Fault tolerance, high availability
+* Consistency vs performance trade-offs
+* Security: authentication, encryption
+
+### Assumptions
+
+* Using Java tech stack (Spring Boot, Netty, etc.)
+* WebSocket-based realtime
+* Use of Kafka/RabbitMQ, Redis, Cassandra or similar for storage
+
+---
+
+## 2. High-Level Architecture Components
+
+* **Load Balancer**: distributes client WebSocket/REST connections (supports sticky session or consistent hashing)
+* **Chat Servers (WebSocket servers)**: handle persistent connections, Reactor model (using Netty or Spring Reactor) for async event loop 
+* **User Connection Cache (Redis)**: stores which server a user is connected to and last active timestamp for presence & routing 
+* **Message Queue (Kafka/RabbitMQ)**: decouples chat servers from storage services, enabling async message handling
+* **Message Storage Service + DB**: consumes from queue, persists to high-throughput store (e.g., Cassandra) for retrieval and history
+* **Group Service**: manages groups, membership lookup for fan-out to group participants
+* **Notification Service**: handles push (FCM/APNS) if user offline; consumes from queue 
+* **Media/File Service & CDN**: store media in object storage (S3/GCS) and serve via CDN; store metadata in DB
+* **Auth Service**: OAuth2/JWT login, token validation
+* **Presence Service**: tracks online/offline via heartbeats
+* **Monitoring & Logging**: Prometheus/Grafana for metrics, ELK/EFK for logs
+* **Admin/Analytics**: management UI, analytics corpus
+
+---
+
+## 3. Message Flow (1-on-1)
+
+1. **Client (user A)** sends message over WebSocket to Chat Server.
+2. Server validates JWT, looks up recipient B’s current server via Redis.
+3. Puts message into Message Queue.
+4. If B is online:
+
+   * Chat Server pushes real-time message via websocket.
+   * Recipient sends delivery/read ack back to server.
+   * Server updates sender with status.
+5. If B is offline:
+
+   * Message Storage Service persists message.
+   * Notification Service sends push notification.
+   * When B reconnects, deliver stored messages.
+
+Also support group chats: Chat Server queries Group Service to fetch members, fans-out message.
+
+---
+
+## 4. Database & Data Model
+
+* **Users**: userId, profile info, phone/email, etc.
+* **Messages**: messageId, chatId (or groupId), senderId, content, timestamp, status
+* **Chats / Groups**: chat metadata, participants
+* **User‑Chats mapping** (many‑to‑many)
+* **Presence Cache (Redis)**: maps userId → connection info + lastActive
+
+Persistent DB choice:
+
+* **Cassandra / DynamoDB**: high-write throughput, time-series read
+* **Optional SQL** for user profiles etc
+
+---
+
+## 5. Sequence Diagram (simplified)
+
+```
+Client A → Load Balancer → Chat Server
+Chat Server → Auth Service (JWT validation)
+Chat Server ↔ Redis (check B’s status)
+Chat Server → Message Queue
+Message Storage Service ← Queue → DB
+If online: Chat Server pushes → Client B, ack back
+If offline: Notification Service → push via FCM/APNS
+Presence updates via heartbeats → Redis
+```
+
+---
+
+## 6. Key Design Considerations
+
+* **Scalability**: scale Chat Servers horizontally; rely on Redis sharding and Kafka partitioning
+* **Consistency**: eventual consistency acceptable for presence/status; message order by timestamp
+* **Latency**: WebSocket real-time path <100 ms; offline path reliability prioritized
+* **Reliability**: message queue retry, idempotency, dead-letter queue
+* **Security**:
+
+  * JWT/OAuth2 auth
+  * TLS/WebSocket encryption
+  * End‑to‑End encryption optionally (client-side) for privacy
+* **Presence logic**: TTL and heartbeats to manage online/offline 
+
+---
+
+## 7. Typical Interview Cross‑Questions (and Answers)
+
+| Q                                                     | A                                                                                                                                                   |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Why WebSocket over HTTP?**                          | WebSocket offers persistent, bi‑directional channels reducing polling latency. HTTP long‑polling not scalable for real‑time chatting. ([Medium][7]) |
+| **How to handle millions of concurrent connections?** | Use Netty/Reactor model (non‑blocking event loops), horizontal scaling, Redis mapping, and efficient event loops in Java.                           |
+| **How to ensure message ordering?**                   | Use per‑chat partitioning in Kafka, sequence numbers, or consistent hashing to specific partitions.                                                 |
+| **What if Redis fails?**                              | Use Redis clustering with replication; fallback to database lookup for connection info; ensure no single point of failure.                          |
+| **How to enforce end‑to‑end encryption?**             | Implement client-side encryption keys (like WhatsApp uses Signal protocol); server only routes ciphertext.
+|
+| **How to manage media uploads/downloads?**            | Upload media to object store via secure presigned URLs; serve via CDN for low latency. Metadata in message DB.                                      |
+| **What about typing indicators, presence updates?**   | Use lightweight WebSocket events broadcast; cache presence in Redis with TTL.                                                                       |
+| **Handling offline messages?**                        | Persist to message DB via storage service; upon reconnection fetch undelivered messages.                                                            |
+| **Scaling group messaging?**                          | For large groups, fan‑out via efficient broadcast engines—either via message queue partitions or multicast services.                                |
+
+---
+
+## 8. Revision Summary (Cheat Sheet)
+
+* Use **Load Balancer → Chat Servers (WebSocket + JWT auth) → Redis presence mapping → Message Queue → Storage Service → DB**
+* **Presence** tracked in Redis, updated via heartbeats
+* **Message delivery**: real-time if online, queued + offline push if offline
+* **Group**: Group Service for membership; fan-out
+* **Media**: Object store + CDN
+* **Security**: TLS + JWT + optional E2EE
+* **Scale**: Horizontal Chat Servers, Redis clustering, Kafka partitions
+
+Client A          Chat Server A        Redis        Kafka/Queue     Chat Server B      Client B         Storage Service    DB
+   │                   │                  │               │                │                │                  │          │
+   │ 1. Connect (WS)   │                  │               │                │                │                  │          │
+   ├──────────────────►│                  │               │                │                │                  │          │
+   │                   │                  │               │                │                │                  │          │
+   │ 2. Send Msg       │                  │               │                │                │                  │          │
+   ├──────────────────►│                  │               │                │                │                  │          │
+   │                   │ 3. Validate JWT │               │                │                │                  │          │
+   │                   ├───────────────► │               │                │                │                  │          │
+   │                   │                  │               │                │                │                  │          │
+   │                   │ 4. Check B’s status (Redis)      │                │                │                  │          │
+   │                   ├───────────────────────────────► │                │                │                  │          │
+   │                   │                  │               │                │                │                  │          │
+   │                   │ 5. Put msg in Kafka             │                │                │                  │          │
+   │                   ├────────────────────────────────►│                │                │                  │          │
+   │                   │                                  │                │                │                  │          │
+   │                   │ 6. If B online: route to Chat Server B          │                │                  │          │
+   │                   └───────────────────────────────────────────────►│                │                  │          │
+   │                                                              │      │                │                  │          │
+   │                                                              │ 7. Push msg         │                  │          │
+   │                                                              ├───────────────────►│                  │          │
+   │                                                              │                    │                  │          │
+   │                                                              │ 8. Ack (Read/Del)  │                  │          │
+   │                                                              ◄───────────────────┤                  │          │
+   │                                                              │                    │                  │          │
+   │                                                              │ 9. Relay Ack back  │                  │          │
+   │                   ◄─────────────────────────────────────────┘                    │                  │          │
+   │                                                                                   │                  │          │
+   │                   │ 10. Async Kafka Consumer writes to Storage                   │                  │          │
+   │                   │────────────────────────────────────────────────────────────► │                  │          │
+   │                                                                                   │ 11. Persist Msg │          │
+   │                                                                                   ├────────────────►│          │
+   │                                                                                   │                  │          │

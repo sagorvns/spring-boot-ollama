@@ -1,0 +1,231 @@
+## ✅ 1. Problem Statement
+
+Design a scalable **E-commerce Platform** that enables:
+
+* Product catalog browsing
+* Search/filter products
+* Shopping cart and checkout
+* Online payments
+* Order management
+* Reviews and ratings
+* Scalability and fault tolerance
+
+---
+
+## 🎯 2. Requirements
+
+### ✅ Functional Requirements
+
+* User registration, login
+* View/search/filter products
+* Add to cart, place order, payment
+* Track orders
+* Product reviews and ratings
+* Seller onboarding (multi-vendor)
+
+### ✅ Non-Functional Requirements
+
+* High availability and scalability
+* Low latency for catalog search
+* Secure payment processing
+* Strong consistency for inventory and orders
+* Fault tolerance
+* Eventual consistency for product info sync
+
+---
+
+## 🧠 3. High-Level Architecture (ASCII Diagram)
+
+```
+                ┌────────────────────┐
+                │    Web / Mobile    │
+                └────────┬───────────┘
+                         ▼
+                  ┌─────────────┐
+                  │ API Gateway │  (Auth, Routing)
+                  └─────┬───────┘
+                        ▼
+     ┌──────────────┬──────────────┬──────────────┐
+     ▼              ▼              ▼              ▼
+Product Service  Cart Service   Order Service   User Service
+     │              │              │              │
+     ▼              ▼              ▼              ▼
+ElasticSearch   Redis Cache   Kafka Queue     Auth DB (Users)
+(Product Search) (Cart)        (Events)
+
+     ┌──────────────┐    ┌──────────────┐
+     ▼              ▼    ▼              ▼
+Inventory Service   Payment Service   Review Service
+     │                  │                 │
+     ▼                  ▼                 ▼
+Inventory DB        Bank APIs         Ratings DB
+
+     ┌──────────────────────────┐
+     ▼                          ▼
+ Notification Service     Analytics Service
+ (Email/SMS/Push)         (Sales, Views, Logs)
+
+     ┌──────────────────────────┐
+     ▼                          ▼
+ Content CDN               Admin Portal
+ (Images, Thumbnails)      (Product Mgmt)
+```
+
+---
+
+## 🔍 4. Key Microservices & Responsibilities
+
+| Service                  | Description                                                           |
+| ------------------------ | --------------------------------------------------------------------- |
+| **Product Catalog**      | Stores item details, images, category, price                          |
+| **Search Service**       | Uses Elasticsearch for fast product search                            |
+| **Cart Service**         | Handles shopping cart in Redis (fast, session-based)                  |
+| **Order Service**        | Manages placing orders and transitions (Placed → Shipped → Delivered) |
+| **Inventory Service**    | Updates stock and locks items during order placement                  |
+| **Payment Service**      | Integrates with payment gateways (Stripe/Razorpay)                    |
+| **Review Service**       | Product ratings + reviews, stored separately                          |
+| **Notification Service** | Email/SMS updates via queues                                          |
+| **Analytics Service**    | Clickstream tracking, product impressions                             |
+
+---
+
+## 🔁 5. Flow: Place Order
+
+1. User logs in and browses catalog
+2. Adds items to **Cart Service** (stored in Redis)
+3. Clicks “Checkout” → request goes to **Order Service**
+4. **Inventory Service** locks item (optimistic locking or versioning)
+5. **Payment Service** processes transaction
+6. If success → status: `PAID`, else rollback
+7. **Order** and **Inventory** updated atomically
+8. Triggers **Kafka Event** → `order.placed`
+9. Async notification sent to **User**
+10. Scheduled job handles delivery flow
+
+---
+
+## 🧾 6. Sample API Design
+
+### 🔹 `POST /api/orders`
+
+**Request:**
+
+```json
+{
+  "userId": "u123",
+  "cartId": "c456",
+  "paymentMethod": "UPI",
+  "shippingAddress": "..."
+}
+```
+
+**Response:**
+
+```json
+{
+  "orderId": "o789",
+  "status": "PAID",
+  "deliveryETA": "3 days"
+}
+```
+
+---
+
+## 🧱 7. Database Design (Simplified)
+
+### 🗃️ Product Table
+
+* `product_id`, `title`, `desc`, `price`, `stock`, `seller_id`
+
+### 🛒 Cart Table
+
+* `cart_id`, `user_id`, `product_id`, `qty`, `added_at`
+
+### 📦 Order Table
+
+* `order_id`, `user_id`, `status`, `payment_status`, `shipping_address`, `created_at`
+
+### 🧾 Order\_Items
+
+* `order_id`, `product_id`, `qty`, `price_at_time`
+
+### 📉 Inventory Table
+
+* `product_id`, `stock`, `reserved`, `last_updated`
+
+### 🌟 Review Table
+
+* `user_id`, `product_id`, `rating`, `comment`, `timestamp`
+
+---
+
+## 🧠 8. Common Interview Cross-Questions
+
+| Question                                            | Answer                                                    |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| **How do you scale product search?**                | Use Elasticsearch with autocomplete, filters, sharding    |
+| **What happens if payment fails?**                  | Order is marked as `FAILED`, inventory is released        |
+| **How do you handle high traffic during sales?**    | Use CDN, Redis for cart, rate limiting at gateway         |
+| **How do you prevent race condition in inventory?** | Optimistic locking or DB row versioning                   |
+| **How do you ensure idempotency?**                  | Use idempotency keys for critical APIs (orders, payments) |
+| **How are order updates sent to users?**            | Kafka → Notification Service (SMS/Email)                  |
+| **Can sellers update product info?**                | Yes, via Admin Portal (secured APIs)                      |
+
+---
+
+## ⚙️ 9. Scalability & Optimization Techniques
+
+| Layer            | Strategy                                        |
+| ---------------- | ----------------------------------------------- |
+| **Catalog**      | Cache frequently viewed products using Redis    |
+| **Search**       | Use Elasticsearch clusters with index tuning    |
+| **Cart**         | Stateless cart stored in Redis per user session |
+| **Orders**       | Write-heavy DB partitioned by user/region       |
+| **Payment**      | Retry-safe using queues + idempotency key       |
+| **Notification** | Use Kafka or RabbitMQ for async delivery        |
+| **CDN**          | Host images, thumbnails close to user location  |
+
+---
+
+## 🔐 10. Security & Compliance
+
+* HTTPS everywhere
+* Role-based access for sellers vs users
+* Rate limiting (via API Gateway)
+* CSRF + JWT token for session security
+* PCI compliance for payments
+* XSS & SQL injection prevention via validation libraries
+
+---
+
+## 🛠️ 11. Tech Stack (Java-Friendly)
+
+| Area          | Tech                         |
+| ------------- | ---------------------------- |
+| Backend       | Java + Spring Boot           |
+| DB            | PostgreSQL or MySQL          |
+| Cache         | Redis                        |
+| Search        | Elasticsearch                |
+| Queue         | Kafka / RabbitMQ             |
+| Payment       | Stripe, Razorpay integration |
+| Auth          | OAuth2 / JWT                 |
+| Image Hosting | AWS S3 + CloudFront CDN      |
+| Deployment    | Docker + Kubernetes          |
+| Monitoring    | Prometheus, Grafana, Zipkin  |
+
+---
+
+## ✅ 12. Quick Revision Sheet
+
+| Feature        | Tech                                 |
+| -------------- | ------------------------------------ |
+| Product Search | Elasticsearch                        |
+| Cart           | Redis, session-based                 |
+| Orders         | ACID-safe, DB + Kafka                |
+| Inventory      | Locking + Versioned updates          |
+| Payments       | External gateway + retries           |
+| Notifications  | Kafka + Email/SMS services           |
+| Reviews        | Separate service + moderation        |
+| Admin          | Product uploads, stock updates       |
+| Scaling        | CDN, DB shards, cache, microservices |
+| Security       | JWT, OAuth2, HTTPS, Role-based APIs  |

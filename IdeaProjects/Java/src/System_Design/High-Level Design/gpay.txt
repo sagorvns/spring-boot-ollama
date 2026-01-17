@@ -1,0 +1,207 @@
+## ✅ 1. Problem Statement
+
+Design a system similar to **Google Pay / UPI** that allows:
+
+* Linking bank accounts via UPI
+* Sending/receiving money instantly
+* Viewing transaction history
+* Secure and real-time processing
+
+---
+
+## 🎯 2. Requirements
+
+### ✅ Functional
+
+* User registration & UPI linking
+* Send money via UPI ID, QR code, mobile
+* Receive money requests
+* Transaction history
+* Real-time settlement
+
+### ✅ Non-Functional
+
+* **High availability**
+* **Strong consistency** (money movement)
+* **Security & Compliance** (PCI-DSS, 2FA)
+* **Scalability** for millions of transactions/day
+
+---
+
+## 🧱 3. High-Level Architecture (ASCII Diagram)
+
+```
+                ┌───────────────┐
+                │  Mobile App   │
+                └──────┬────────┘
+                       ▼
+               ┌─────────────┐
+               │ API Gateway │
+               └────┬────────┘
+                    ▼
+           ┌────────────────────┐
+           │   Auth Service     │  ← OAuth2 + Device Binding
+           └────────┬───────────┘
+                    ▼
+           ┌────────────────────┐
+           │ Transaction Engine │  ← Validates, processes, logs TXN
+           └────┬─────┬─────────┘
+                ▼     ▼
+       ┌────────────┐ ┌───────────────────┐
+       │ NPCI UPI   │ │ Fraud Detection   │
+       │ Interface  │ │ & Risk Engine     │
+       └────┬───────┘ └───────────────────┘
+            ▼
+   ┌────────────────────┐
+   │ Linked Bank System │ ← IMPS/UPI Routing
+   └────────────────────┘
+
+Side systems:
+   ┌────────────────────────┐
+   │ Notification Service   │ ← SMS, Push, Email
+   └────────────────────────┘
+   ┌────────────────────────┐
+   │ Ledger DB (ACID-safe)  │
+   └────────────────────────┘
+   ┌────────────────────────┐
+   │ Transaction History DB │
+   └────────────────────────┘
+```
+
+---
+
+## ⚙️ 4. Detailed Component Breakdown
+
+### 🔐 1. **Authentication Service**
+
+* OAuth2 + PIN + biometric + device binding
+* Token-based session auth (JWT)
+
+### 💸 2. **Transaction Engine**
+
+* Core logic for:
+
+  * Validating UPI ID
+  * Checking balance
+  * Debit/Credit from ledger
+  * Initiate transfer via NPCI
+
+### 🧾 3. **Ledger Service**
+
+* Double-entry system
+* **ACID-compliant DB** to ensure consistency
+* Record all debits and credits
+
+### 🔁 4. **NPCI / UPI Gateway**
+
+* Talk to NPCI APIs using VPA (Virtual Payment Address)
+* Supports IMPS / UPI / RTGS
+* Retry mechanism for pending/failure
+
+### ⚠️ 5. **Risk & Fraud Detection**
+
+* Detect unusual activity
+* Geo-location anomalies
+* ML model or rule engine (Drools)
+
+### 📩 6. **Notification Service**
+
+* Push notification, SMS alerts for each transaction
+* Works asynchronously via Kafka queue
+
+---
+
+## 🗃️ 5. Database Design
+
+### User Table (PostgreSQL)
+
+```sql
+user_id | name | phone | device_id | is_verified
+```
+
+### Linked Bank Accounts
+
+```sql
+user_id | vpa_id | bank_ifsc | account_number | is_primary
+```
+
+### Ledger Table (ACID DB like CockroachDB)
+
+```sql
+txn_id | user_id | amount | type (debit/credit) | status | created_at
+```
+
+### Transaction History
+
+```sql
+txn_id | from_user | to_user | amount | status | timestamp
+```
+
+---
+
+## 📶 6. Sequence Diagram (Steps to Send Money)
+
+1. User enters amount & receiver
+2. Client hits `/send-money`
+3. Auth Service verifies token & device
+4. Transaction Engine:
+
+   * Checks balance
+   * Freezes funds
+   * Calls UPI/NPCI
+   * Updates ledger (if success)
+5. Push notification sent
+6. Transaction stored in history
+
+---
+
+## 🧠 7. Common Interview Questions & Answers
+
+| ❓ Question                                          | ✅ Answer                                                                      |
+| --------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **How do you ensure atomicity of money transfers?** | Use ACID-compliant ledger DB; debit + credit recorded as one transaction      |
+| **What if the NPCI call fails?**                    | Retry with exponential backoff. If failure persists, reverse debit and notify |
+| **How to prevent double spending?**                 | Use distributed locks or idempotency keys in Transaction Engine               |
+| **How to handle fraud/spam detection?**             | Rules like amount limits, device fingerprinting, behavioral ML                |
+| **What DB for ledger?**                             | CockroachDB, PostgreSQL, or FoundationDB (for ACID + scalability)             |
+| **Can the ledger be eventually consistent?**        | No. Money transfer must be strictly consistent                                |
+| **Why use queues like Kafka?**                      | For async processing: notifications, analytics, fraud audit                   |
+| **How to handle high traffic?**                     | Scale horizontally: stateless services + sharded DB + async ops               |
+
+---
+
+## 🧾 8. Quick Revision Sheet
+
+| Component        | Key Tech                    |
+| ---------------- | --------------------------- |
+| API Gateway      | Spring Boot Gateway, OAuth2 |
+| Auth             | JWT, Device Binding, 2FA    |
+| Transaction Core | ACID Ledger + UPI Gateway   |
+| Ledger           | PostgreSQL / CockroachDB    |
+| NPCI Integration | UPI REST APIs               |
+| Notifications    | Kafka + SMS/Email Services  |
+| Risk Engine      | Drools / Flink ML           |
+| Monitoring       | Prometheus + Grafana        |
+
+---
+
+## 📌 9. Java Tech Stack Suggestion
+
+| Layer       | Technology                |
+| ----------- | ------------------------- |
+| API Layer   | Spring Boot, JWT, OAuth2  |
+| Async       | Kafka                     |
+| Ledger      | PostgreSQL, Flyway        |
+| Risk Engine | Drools, Java Rules Engine |
+| DB          | PostgreSQL, Redis         |
+| NPCI Client | REST Template / WebClient |
+| CI/CD       | Jenkins, Docker, K8s      |
+
+---
+
+## 🧭 10. Optional Enhancements
+
+* **Rate Limiting**: Prevent abuse via Bucket4J or Redis token bucket
+* **Idempotency Keys**: Avoid duplicate transactions
+* **A/B Testing**: ML-based suggestions for merchant cashback
+* **Audit Logs**: Immutable event store for financial operations

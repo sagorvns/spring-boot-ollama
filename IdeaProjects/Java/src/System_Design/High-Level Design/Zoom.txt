@@ -1,0 +1,184 @@
+## ✅ 1. Problem Statement
+
+Design a **Video Conferencing System** like **Zoom, Google Meet, or MS Teams** that allows:
+
+* Real-time video/audio communication
+* Screen sharing, messaging, file sharing
+* Group or one-on-one meetings
+* Meeting scheduling, joining via links
+
+---
+
+## 🎯 2. Requirements
+
+### ✅ Functional Requirements
+
+* Create/join/leave meetings
+* Real-time audio/video streaming
+* Mute/unmute, raise hand, chat, screen share
+* Host controls: kick, mute-all, recording
+* Scheduled or instant meetings
+
+### ✅ Non-Functional Requirements
+
+* Ultra-low latency (< 300 ms)
+* High availability (99.99%)
+* Horizontal scalability (millions of users)
+* Fault-tolerance and end-to-end encryption
+
+---
+
+## 🧱 3. High-Level Architecture (ASCII + Breakdown)
+
+```
+                        ┌────────────────────┐
+                        │  Client Devices    │ (Web, iOS, Android)
+                        └────────┬───────────┘
+                                 ▼
+                          ┌────────────┐
+                          │  API Layer │ ← Spring Boot
+                          └────┬───────┘
+                               ▼
+      ┌────────────────────────────────────────────┐
+      │        Signaling Server (WebSocket/STUN)    │
+      └────┬────────────────────┬───────────────────┘
+           ▼                    ▼
+ ┌─────────────────┐   ┌───────────────────────┐
+ │ Media Server(s) │   │     Chat Server       │
+ │ (SFU: Janus)     │   │ (WebSocket + Kafka)  │
+ └────────┬─────────┘   └────────────┬──────────┘
+          ▼                          ▼
+ ┌────────────────────┐     ┌───────────────────┐
+ │ TURN/STUN Servers  │     │  Message DB (MongoDB) │
+ └────────────────────┘     └───────────────────┘
+
+                ┌────────────────────────┐
+                │  User + Meeting DB     │ (PostgreSQL)
+                └────────────────────────┘
+
+                ┌────────────────────────┐
+                │  Recording + Storage   │ (S3, Blob)
+                └────────────────────────┘
+```
+
+---
+
+## ⚙️ 4. Key Component Explanations
+
+### 🗨️ 1. **Signaling Server**
+
+* Uses WebSocket + STUN protocol to establish peer-to-peer connections
+* Handles join/leave events, ICE candidates exchange
+* Can be built using Spring Boot + Netty or Node.js for low-latency
+
+### 📺 2. **Media Server (SFU)**
+
+* Use **Janus**, **Kurento**, or **Mediasoup**
+* SFU (Selective Forwarding Unit) routes media packets to multiple users without decoding
+* Efficient for group video calls
+
+### 🔄 3. **TURN/STUN Servers**
+
+* STUN: Finds public IP for NAT traversal
+* TURN: Relay media when direct connection fails (uses bandwidth heavily)
+
+### 💬 4. **Chat Server**
+
+* Handles real-time chat in rooms
+* Kafka → WebSocket → store in MongoDB
+
+### 🎥 5. **Recording Service**
+
+* Media streams recorded on SFU → stored in **S3**
+* Can transcode using FFMPEG and notify via callback
+
+---
+
+## 🧪 5. Sample APIs
+
+```http
+POST /meetings/create
+{
+  "hostId": "user123",
+  "scheduledTime": "2025-07-24T10:00Z",
+  "title": "Sprint Review"
+}
+
+POST /meetings/{meetingId}/join
+GET  /meetings/{meetingId}/participants
+```
+
+---
+
+## 🗃️ 6. Database Design
+
+### 🧑 User Table
+
+* `user_id`, `email`, `password_hash`, `status`, `created_at`
+
+### 📅 Meeting Table
+
+* `meeting_id`, `host_id`, `start_time`, `end_time`, `status`, `meeting_url`
+
+### 👥 Participant Table
+
+* `user_id`, `meeting_id`, `role`, `join_time`, `leave_time`
+
+### 💬 Chat Table
+
+* `meeting_id`, `sender_id`, `message`, `timestamp`
+
+---
+
+## 🧠 7. Interview Cross Questions + Answers
+
+| ❓ Question                                         | ✅ Answer                                                                                                                                            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Why SFU over MCU?**                              | SFU forwards packets without decoding—saves CPU, better for 3+ participants. MCU decodes/encodes all streams—good for recording but resource heavy. |
+| **How to ensure low latency?**                     | WebRTC + SFU + optimized region-based TURN servers reduce latency to < 300ms                                                                        |
+| **How do you scale this system?**                  | Use load balancers to distribute users across SFU clusters based on location; use Kafka for signaling fanout.                                       |
+| **What if the host loses internet?**               | Assign co-host; client detects drop → promote backup host.                                                                                          |
+| **How is chat synced across clients?**             | Messages via WebSocket → Kafka topic → broadcast to clients + persist in MongoDB                                                                    |
+| **How do you handle network drops during a call?** | Use ICE restarts and TURN fallback to reconnect within session timeout.                                                                             |
+| **How is media encrypted?**                        | WebRTC provides DTLS-SRTP encryption by default for all media streams.                                                                              |
+
+---
+
+## 📈 8. Non-Functional Design
+
+| Concern       | Approach                                                                       |
+| ------------- | ------------------------------------------------------------------------------ |
+| Latency       | WebRTC (UDP), local SFUs, CDN for static                                       |
+| Availability  | Multi-region SFUs, fallback TURN                                               |
+| Scalability   | Stateless API, distributed Kafka, auto-scaling SFUs                            |
+| Observability | Prometheus + Grafana + AlertManager                                            |
+| Security      | JWT tokens for meeting access, E2E encryption, token expiry, role-based access |
+
+---
+
+## 🧾 9. Quick Revision Notes
+
+| Component   | Key Point                                         |
+| ----------- | ------------------------------------------------- |
+| SFU (Janus) | Media stream router for group calls               |
+| STUN/TURN   | NAT traversal and relay                           |
+| WebRTC      | Core protocol for media & peer connections        |
+| Chat        | Kafka + WebSocket → MongoDB                       |
+| Recording   | SFU plugin + S3                                   |
+| Scaling     | SFU pools + LB + Redis session cache              |
+| API Layer   | Spring Boot + JWT Auth                            |
+| Signaling   | WebSocket for ICE negotiation                     |
+| Persistence | PostgreSQL (metadata), MongoDB (chat), S3 (media) |
+
+---
+
+## 🧰 10. Java-Optimized Stack
+
+| Layer         | Tech                            |
+| ------------- | ------------------------------- |
+| API           | Spring Boot, WebSocket, JWT     |
+| Chat          | Kafka + WebSocket               |
+| Media         | Janus SFU, WebRTC               |
+| Storage       | PostgreSQL, MongoDB, Redis, S3  |
+| Real-time     | Redis Pub/Sub, WebSocket, Kafka |
+| Observability | Micrometer + Prometheus/Grafana |

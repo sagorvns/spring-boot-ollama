@@ -1,0 +1,246 @@
+## ✅ 1. Problem Statement
+
+Design a **scalable food delivery platform** where:
+
+* Users can browse restaurants, view menus, and place orders.
+* Restaurants can manage menus and accept/reject orders.
+* Delivery partners can accept & deliver orders.
+* Admin can manage listings.
+* The platform must support real-time tracking, offers, and notifications.
+
+---
+
+## ✅ 2. High-Level Design (HLD)
+
+### 🎯 Key Modules:
+
+* User App (Search, Browse, Cart, Order)
+* Restaurant App (Menu, Orders, Status)
+* Delivery App (Orders, Routes)
+* Admin Portal
+
+---
+
+### 📦 Core Microservices:
+
+```
+- User Service
+- Restaurant Service
+- Menu Service
+- Cart & Order Service
+- Payment Service
+- Delivery Assignment Service
+- Notification Service
+- Real-time Tracking Service (via GPS)
+- Review & Rating Service
+```
+
+---
+
+## ✅ 3. Architecture Diagram – Text Layout
+
+```
+[Client (User / Restaurant / Delivery)]
+       ↓
+  [API Gateway]
+       ↓
+ ┌────────────────────────────────────────┐
+ | Auth Service (JWT, OAuth)              |
+ | User Service                           |
+ | Restaurant Service → Menu DB           |
+ | Cart & Order Service → Orders DB       |
+ | Payment Service → Razorpay/Stripe      |
+ | Delivery Assignment Service → Redis    |
+ | Real-time Tracking Service ← GPS SDK   |
+ | Notification Service ← Kafka           |
+ | Review & Rating Service                |
+ └────────────────────────────────────────┘
+       ↓
+[PostgreSQL, Redis, Kafka, Elasticsearch]
+```
+
+---
+
+## ✅ 4. Database Design (Simplified)
+
+### `User`
+
+\| id | name | email | address | phone | role |
+
+### `Restaurant`
+
+\| id | name | location | open\_hours | rating |
+
+### `MenuItem`
+
+\| id | restaurant\_id | name | price | is\_available |
+
+### `Order`
+
+\| id | user\_id | restaurant\_id | status | total\_amount | delivery\_partner\_id |
+
+### `Cart`
+
+\| id | user\_id | items (JSON) | total |
+
+### `DeliveryPartner`
+
+\| id | name | current\_location | status |
+
+### `Rating`
+
+\| id | user\_id | restaurant\_id | score | review |
+
+---
+
+## ✅ 5. Key Service Details
+
+### 👤 **User Service**
+
+* User registration/login/profile
+* OAuth or OTP login
+* Address management
+
+---
+
+### 🍽️ **Restaurant & Menu Service**
+
+* Menu creation/update
+* Accept/reject incoming orders
+* Restaurant dashboard
+
+---
+
+### 🛒 **Cart & Order Service**
+
+* Add/remove items to cart
+* Place an order
+* Payment integration
+* Order status tracking (enum: PLACED → CONFIRMED → PREPARED → OUT\_FOR\_DELIVERY → DELIVERED)
+
+---
+
+### 🚚 **Delivery Assignment Service**
+
+* Match order with nearest available delivery partner
+* Use **Redis GeoSpatial Indexing** for real-time location
+* Auto-reassign if unaccepted in N seconds
+
+---
+
+### 📍 **Real-time Tracking Service**
+
+* Periodically update delivery location (via GPS SDK)
+* WebSocket for live map updates
+* Use Redis or DynamoDB TTL for location expiry
+
+---
+
+### 💳 **Payment Service**
+
+* Integrate with Razorpay/Stripe/UPI
+* Handles offers, refunds, cashback
+* Order confirmed only after payment success
+
+---
+
+### 🔔 **Notification Service**
+
+* Kafka publishes events like:
+
+  * Order placed
+  * Order out for delivery
+* Consumers send push, SMS, or email
+
+---
+
+### ⭐ **Review & Rating Service**
+
+* Post-delivery feedback
+* Stored in NoSQL or PostgreSQL
+* Feed into restaurant ranking/search
+
+---
+
+## ✅ 6. Real-Time Features
+
+| Feature              | Design                              |
+| -------------------- | ----------------------------------- |
+| Live order status    | Redis pub-sub/WebSocket             |
+| Delivery tracking    | GPS push + WebSocket polling        |
+| ETA calculation      | Based on route APIs (Google/Mapbox) |
+| Auto-assign delivery | Redis GeoIndex + TTL + fallback     |
+
+---
+
+## ✅ 7. Scaling & Optimization
+
+| Problem                  | Solution                          |
+| ------------------------ | --------------------------------- |
+| High traffic             | CDN + Load Balancers              |
+| Cart/order atomic ops    | Redis locking or versioning       |
+| Delivery location spikes | TTL-based Redis geo-sharding      |
+| Read-heavy menus         | Redis + Elasticsearch             |
+| Payment failures         | Retry logic, transactional outbox |
+
+---
+
+## ✅ 8. Tech Stack (Java-Centric)
+
+| Component      | Tech                             |
+| -------------- | -------------------------------- |
+| Backend        | Java 21, Spring Boot 3.2         |
+| Auth           | Spring Security, OAuth, JWT      |
+| DB             | PostgreSQL, Redis, Elasticsearch |
+| Queue          | Kafka                            |
+| Payments       | Razorpay/Stripe/UPI APIs         |
+| Notifications  | Firebase + Kafka                 |
+| Real-time      | WebSockets + Redis               |
+| Location Match | Redis GeoIndex + TTL             |
+
+---
+
+## ✅ 9. Cross-Questions & Answers
+
+### ❓Q1. How is a delivery partner assigned?
+
+**A:** Redis GeoSpatial index is used to find the nearest available delivery partner. If they don’t accept in N seconds, reassign to the next nearest.
+
+---
+
+### ❓Q2. What if a restaurant rejects an order?
+
+**A:** Order state is updated to `REJECTED`. The user is notified. You may suggest similar restaurants or refund.
+
+---
+
+### ❓Q3. How do you track delivery partner in real-time?
+
+**A:** Each delivery partner’s GPS location is pushed periodically to Redis. Client fetches via WebSocket.
+
+---
+
+### ❓Q4. How to avoid race conditions while placing an order?
+
+**A:** Use Redis-based locks or optimistic concurrency checks during cart-to-order transition.
+
+---
+
+### ❓Q5. How to scale order service?
+
+**A:** Use sharded databases by region. Use Kafka for decoupled processing (e.g., notify, delivery assign, payment).
+
+---
+
+## ✅ 10. Summary Cheatsheet
+
+| Area            | Strategy                 |
+| --------------- | ------------------------ |
+| Matching        | Redis GeoIndex           |
+| Order State     | Enum + DB status updates |
+| Real-time Track | Redis TTL + WebSocket    |
+| Search          | Elasticsearch            |
+| Menu Caching    | Redis                    |
+| Payment         | Razorpay/UPI + webhook   |
+| Notifications   | Kafka + Firebase         |
+| Scalability     | Sharding + Kafka + Redis |

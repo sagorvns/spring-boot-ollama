@@ -1,0 +1,191 @@
+## ✅ 1. Problem Statement
+
+Design a **Recommendation System** that suggests relevant content or products to users in real-time and batch mode.
+
+Examples:
+
+* **Shopping** → “Frequently bought together”, “You may also like”
+* **Movies/Music** → “Because you watched...”, “Top picks for you”
+
+---
+
+## 🎯 2. Requirements
+
+### ✅ Functional
+
+* Show personalized recommendations
+* Update results based on new interactions (watch, purchase, search)
+* Support item-based and user-based suggestions
+* Allow filtering by category, price, genre, etc.
+
+### ✅ Non-Functional
+
+* **Real-time + batch** processing
+* **Low latency** (< 200ms)
+* **Scalable** to millions of users/items
+* **Fault-tolerant**
+
+---
+
+## 🧱 3. High-Level Architecture (ASCII)
+
+```
+                        ┌────────────────────┐
+                        │ Frontend (Web/App) │
+                        └────────┬───────────┘
+                                 ▼
+                          ┌────────────┐
+                          │ API Layer  │
+                          └────┬───────┘
+                               ▼
+        ┌───────────────────────────────┐
+        │ Recommendation Orchestrator   │
+        └──────┬─────────────┬──────────┘
+               ▼             ▼
+     ┌──────────────┐ ┌──────────────┐
+     │ Batch Engine │ │ Real-Time Engine │
+     └────┬─────────┘ └──────────────┘
+          ▼
+     ┌─────────────┐
+     │ Feature Store│  ◄───┐
+     └─────────────┘      │
+                          ▼
+       ┌────────────────────────────┐
+       │ User Events Stream (Kafka) │
+       └────────────────────────────┘
+
+Other Supporting Components:
+────────────────────────────
+Search Service (Elastic)
+ML Models (TensorFlow/SageMaker)
+Caching Layer (Redis)
+DB Layer (User, Item, Ratings)
+
+```
+
+---
+
+## 🔁 4. Types of Recommendation Techniques
+
+| Type                           | Example                           | Use Case          |
+| ------------------------------ | --------------------------------- | ----------------- |
+| 🔷 **Collaborative Filtering** | "Users like you also liked..."    | Netflix, Spotify  |
+| 🔶 **Content-Based Filtering** | "Items similar to what you liked" | Amazon            |
+| 🔷 **Hybrid Models**           | Combine both                      | YouTube, Facebook |
+| 🔶 **Rule-Based**              | "Top sellers in Electronics"      | For cold start    |
+
+---
+
+## 🧠 5. Key Components Explained
+
+### 🔄 **User Event Pipeline**
+
+* Events like views, clicks, watch-time, purchases
+* Captured via Kafka → sent to Feature Store & Analytics
+
+### 🧠 **Feature Store**
+
+* Stores derived user/item features (e.g., user age, interests, item category, popularity)
+
+### ⚙️ **Batch Engine**
+
+* Periodically retrains models (e.g., every 6h or nightly)
+* Uses ML pipelines (e.g., ALS, matrix factorization, embeddings)
+
+### ⚡ **Real-Time Engine**
+
+* Generates fast recommendations for active users
+* Uses cached results, nearest neighbors, or pre-computed vectors
+
+---
+
+## 🗃 6. Database Design
+
+### 📄 User Table
+
+* `user_id`, `age`, `gender`, `location`, `preferences`
+
+### 📄 Item Table
+
+* `item_id`, `title`, `category`, `tags`, `popularity_score`
+
+### 📄 Interactions Table
+
+* `user_id`, `item_id`, `event_type`, `timestamp`, `duration`
+
+### 📄 Recommendations Table
+
+* `user_id`, `recommendation_list`, `updated_at`
+
+---
+
+## 🧪 7. Sample API
+
+### GET `/recommendations/{userId}`
+
+**Response:**
+
+```json
+{
+  "user_id": "u1287",
+  "recommendations": [
+    {"item_id": "m122", "title": "Inception"},
+    {"item_id": "m184", "title": "Dark Knight"}
+  ]
+}
+```
+
+---
+
+## ⚙️ 8. Tech Stack (Java Friendly)
+
+| Component         | Technology                     |
+| ----------------- | ------------------------------ |
+| Backend           | Java + Spring Boot             |
+| Queue             | Kafka                          |
+| ML Models         | TensorFlow, SageMaker, PyTorch |
+| DB                | PostgreSQL / Cassandra         |
+| Cache             | Redis                          |
+| Feature Store     | Feast / Redis / PostgreSQL     |
+| Search            | ElasticSearch                  |
+| Model Serving     | TensorFlow Serving, TorchServe |
+| Logging & Metrics | Prometheus, Grafana            |
+
+---
+
+## ❓ 9. Interview Cross Questions + Answers
+
+| Question                                            | Interview-Ready Answer                                             |
+| --------------------------------------------------- | ------------------------------------------------------------------ |
+| **How do you handle cold start for new users?**     | Use popularity-based or demographic-based recommendations          |
+| **How often is the model retrained?**               | Daily or based on data drift; batch job via Airflow/SageMaker      |
+| **How is latency managed?**                         | Cache top-N results in Redis; real-time fallback to heuristics     |
+| **How are recommendations evaluated?**              | Use precision\@k, recall\@k, NDCG, A/B testing                     |
+| **How do you handle biases in recommendations?**    | Normalize scores, use diversity constraints                        |
+| **How does personalization work in real time?**     | User event updates user vector → re-rank cached list               |
+| **How do you ensure freshness of recommendations?** | Real-time engine ingests new events, feature store updates quickly |
+
+---
+
+## 🔐 10. Security and Privacy
+
+* Only show user-allowed content (based on roles, age, etc.)
+* Use anonymized IDs for ML pipelines
+* Data retention & GDPR compliance for user events
+
+---
+
+## 🧾 11. Quick Revision Sheet (Cheat Notes)
+
+| Element         | Key Details                             |
+| --------------- | --------------------------------------- |
+| Event Ingestion | Kafka for user events                   |
+| Features        | Stored in Feature Store                 |
+| Batch Model     | Trained via ALS / Embeddings            |
+| Real-time Model | Nearest neighbors + cache               |
+| Cold Start      | Popular items or user demographics      |
+| Caching         | Redis for top-N results                 |
+| Evaluation      | A/B tests + precision/recall            |
+| APIs            | `/recommendations/{userId}`             |
+| Storage         | PostgreSQL for metadata                 |
+| Serving         | TensorFlow Serving or hybrid Java layer |

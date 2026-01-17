@@ -1,0 +1,246 @@
+## 🧠 1. Problem Statement
+
+Build a system that allows **multiple users** to collaboratively edit documents in **real time**, see each other's changes instantly, and preserve the **integrity, history**, and **synchronization** of the document.
+
+---
+
+## ✅ 2. Requirements
+
+### 🔹 Functional:
+
+* Real-time collaborative editing
+* Auto-save and manual save
+* Track changes, version history
+* Commenting and suggesting mode
+* Access control (viewer, editor, commenter)
+* Simultaneous cursor position display
+* Offline editing and sync on reconnect
+
+### 🔹 Non-Functional:
+
+* Low latency (\~<200ms)
+* High availability
+* Consistency & conflict resolution
+* Scalable to millions of concurrent editors
+* Data durability and recovery
+
+---
+
+## 🏗️ 3. High-Level Architecture
+
+```
++-------------------+       +----------------------+
+|    Web/Mobile     |<----->|   WebSocket Server   |
+|     Clients       |       +----------+-----------+
++-------------------+                  |
+                                      |
+                              +-------v--------+
+                              | Operational    |
+                              | Transform / CRDT|
+                              +-------+--------+
+                                      |
+            +-------------------------v-------------------------+
+            |              Document Session Manager             |
+            +----------------+----------------+-----------------+
+                             |                |
+                     +-------v------+   +-----v---------+
+                     | Document DB  |   | Event Stream  |
+                     | (MongoDB)    |   | (Kafka/PubSub)|
+                     +--------------+   +---------------+
+                             |
+                   +---------v----------+
+                   |  Version Control   |
+                   |  & Audit Service   |
+                   +--------------------+
+```
+
+---
+
+## 🧩 4. Key Components Explained
+
+| Component            | Role                                                       |
+| -------------------- | ---------------------------------------------------------- |
+| **Client (Browser)** | Renders document, handles UI, sends changes via WebSocket  |
+| **WebSocket Server** | Real-time channel for updates and synchronization          |
+| **OT/CRDT Engine**   | Conflict resolution engine (explained below)               |
+| **Session Manager**  | Tracks live editing sessions, users, and cursors           |
+| **Document DB**      | Stores latest document state and metadata                  |
+| **Event Stream**     | Handles event publishing, ordering, syncing, and analytics |
+| **Version Service**  | Maintains version history and supports rollbacks           |
+| **Access Control**   | User permissions, document sharing, roles                  |
+
+---
+
+## ⚙️ 5. Real-Time Editing Algorithms
+
+### 🔹 Option 1: **Operational Transformation (OT)**
+
+* Used by Google Docs
+* Transforms operations (inserts/deletes) based on concurrent changes
+* Example:
+
+  * User A inserts "H" at pos 1
+  * User B deletes pos 2
+  * OT transforms ops so neither loses context
+
+### 🔹 Option 2: **Conflict-free Replicated Data Type (CRDT)**
+
+* Used by Automerge, Yjs, Figma
+* Each edit becomes a CRDT operation
+* Automatically merges without needing a central server to transform
+
+| OT                    | CRDT                         |
+| --------------------- | ---------------------------- |
+| Central server needed | Peer-to-peer possible        |
+| Less overhead         | Larger payloads              |
+| Complex to implement  | Simple once modeled          |
+| Used by Google Docs   | Used by Figma, Dropbox Paper |
+
+**✅ For Google Docs-like product, OT is preferred due to precision and performance**
+
+---
+
+## 🧮 6. Data Model (MongoDB Style)
+
+### 📄 Document
+
+```json
+{
+  "_id": "doc123",
+  "title": "Team Plan",
+  "content": "<p>Initial content</p>",
+  "version": 44,
+  "owner": "user1",
+  "collaborators": ["user2", "user3"],
+  "permissions": {
+    "user1": "editor",
+    "user2": "commenter"
+  },
+  "history": [
+    { "op": "insert", "text": "hello", "pos": 3, "user": "user2", "ts": 12345 }
+  ]
+}
+```
+
+---
+
+## 🔁 7. Flow Diagram (Edit + Broadcast)
+
+```
+User A types "Hello"
+↓
+Client sends operation: { op: insert, char: 'H', pos: 0 }
+↓
+WebSocket server receives and broadcasts
+↓
+Operational Transform engine adjusts positions if needed
+↓
+Broadcast to all active users in the session
+↓
+Each client updates local view
+↓
+Changes stored in MongoDB and Kafka log
+↓
+Periodic version snapshot created
+```
+
+---
+
+## 🔒 8. Access Control
+
+* Role-based (editor, commenter, viewer)
+* Shared via email or link (token-based)
+* Real-time enforcement on backend
+* Document metadata stores ACLs
+
+---
+
+## ⚡ 9. Optimizations
+
+| Need                | Optimization                              |
+| ------------------- | ----------------------------------------- |
+| Fast sync           | Use WebSocket for push instead of polling |
+| Quick startup       | Load document via snapshot + replay ops   |
+| Conflict resolution | OT with transformation matrix or CRDTs    |
+| Crash recovery      | Autosave every X seconds; store in Redis  |
+| Low bandwidth       | Send diffs not full content               |
+| Version rollback    | Snapshot every N operations               |
+
+---
+
+## 📚 10. Cross-Questions with Answers
+
+---
+
+### ❓ How do you handle conflicts when multiple users edit the same line?
+
+✅ OT or CRDT resolves conflicts. In OT, transformation functions rebase one operation on top of another. In CRDT, each operation is designed to be mergeable.
+
+---
+
+### ❓ What happens when a user disconnects and reconnects?
+
+✅ Document snapshot + replay of missed ops from Kafka or in-memory queue ensures user is up to date.
+
+---
+
+### ❓ How do you prevent data loss?
+
+✅ Changes are stored in Redis (volatile) + MongoDB (durable). Snapshots taken periodically. Kafka ensures replay-ability.
+
+---
+
+### ❓ Can this system scale to 1M+ users?
+
+✅ Yes. Use horizontal scaling:
+
+* WebSocket shards based on document ID
+* Redis or Hazelcast for shared session info
+* MongoDB sharding
+* Kafka partitions for event replay
+
+---
+
+### ❓ How are operations ordered across users?
+
+✅ Server timestamps, user vector clocks, or OT sequence numbers ensure correct ordering.
+
+---
+
+### ❓ What about offline editing?
+
+✅ Store local ops in IndexedDB → sync on reconnect → conflict resolved by CRDT or by server OT.
+
+---
+
+### ❓ Why WebSocket over HTTP?
+
+✅ Push-based, low latency, real-time delivery. HTTP is stateless and adds polling overhead.
+
+---
+
+## 📌 11. Summary Table for Interview Revision
+
+| Feature           | Tech / Algo         | Notes                  |
+| ----------------- | ------------------- | ---------------------- |
+| Real-time updates | WebSocket           | Push edits instantly   |
+| Sync engine       | OT / CRDT           | Conflict resolution    |
+| DB                | MongoDB, Redis      | Durable + fast         |
+| Versioning        | Snapshot + Delta    | Efficient rollback     |
+| Access control    | Role-based + tokens | Secure sharing         |
+| Event log         | Kafka               | Replay support         |
+| Offline support   | IndexedDB + queue   | Auto-sync on reconnect |
+
+---
+
+## 🛠️ Bonus: Tech Stack Suggestion
+
+| Layer          | Tech                                   |
+| -------------- | -------------------------------------- |
+| Frontend       | React/Angular + Yjs/Automerge          |
+| Real-time Comm | WebSocket (Spring WebFlux or Netty)    |
+| Backend        | Spring Boot                            |
+| Sync Engine    | OT (custom or ShareDB) or CRDT         |
+| DB             | MongoDB + Redis                        |
+| Queue          | Kafka or RabbitMQ                      |
+| Auth           | OAuth2, Firebase Auth, Spring Security |

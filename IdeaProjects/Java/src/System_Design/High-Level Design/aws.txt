@@ -1,0 +1,225 @@
+## ✅ 1. Problem Statement
+
+Design a **Cloud Infrastructure Provider** that allows users to provision:
+
+* Compute instances (VMs)
+* Storage (block, object, file)
+* Managed databases
+* Networking (VPC, Load Balancers, DNS)
+* Monitoring, logging, security, billing
+
+This mimics services like AWS EC2, S3, VPC, RDS, CloudWatch, etc.
+
+---
+
+## 🎯 2. Requirements
+
+### ✅ Functional Requirements
+
+* Launch & terminate VMs
+* Allocate object/block/file storage
+* Create/manage databases (SQL/NoSQL)
+* Provide VPC, load balancer, and DNS
+* Track metrics & usage (for billing)
+* Secure IAM roles and policies
+
+### ✅ Non-Functional Requirements
+
+* **High availability (HA)** and **fault tolerance**
+* **Multi-region** deployment
+* **Elastic scalability**
+* Secure & isolated **multi-tenancy**
+* **Low latency APIs**
+* **Observability** (logs, metrics, alerts)
+
+---
+
+## 🏗️ 3. High-Level Architecture Diagram
+
+```
++-------------------------------+
+|       User Portal / CLI       |
++-------------------------------+
+               |
+               ▼
++-------------------------------+
+|     API Gateway / Auth        |
+|  (OAuth2, IAM Policies)       |
++-------------------------------+
+               |
+               ▼
++-------------------------------+
+|       Orchestration Layer     |
+|  (Terraform, Cloud SDK)       |
++-------------------------------+
+               |
+     +---------+----------+---------+-----------+
+     |                    |                   |
+     ▼                    ▼                   ▼
++---------+      +----------------+     +---------------+
+| Compute |      |   Storage       |     |   Network     |
+| Manager |      |   Manager       |     |   Manager     |
++---------+      +----------------+     +---------------+
+     |                    |                   |
+     ▼                    ▼                   ▼
++---------+        +-------------+     +----------------+
+| VM Host |        | S3 / Block  |     | VPC / LB / DNS |
+| (KVM)   |        | Storage     |     |                |
++---------+        +-------------+     +----------------+
+
+               |
+               ▼
++-------------------------------+
+| Monitoring / Logging / Billing|
++-------------------------------+
+```
+
+---
+
+## 🧩 4. Component Breakdown
+
+| Component               | Description                                                      |
+| ----------------------- | ---------------------------------------------------------------- |
+| **User Portal/API**     | UI or CLI for users to manage infrastructure                     |
+| **Auth Gateway**        | Uses IAM + OAuth2 to secure APIs                                 |
+| **Orchestration Layer** | Accepts infra-as-code (Terraform) and manages resource lifecycle |
+| **Compute Manager**     | Provisions VMs using hypervisors                                 |
+| **Storage Manager**     | Manages object (S3), block (EBS), and file storage               |
+| **Network Manager**     | Configures virtual networks, subnets, IPs, DNS, load balancers   |
+| **Monitoring/Billing**  | Tracks resource usage and sends alerts/bills                     |
+
+---
+
+## ⚙️ 5. Internal Workflows
+
+### 🔸 VM Provisioning Flow
+
+```
+1. User requests VM via API
+2. Auth Gateway verifies IAM policy
+3. Orchestration Layer receives request
+4. Compute Manager selects best host
+5. Block Storage allocated (EBS)
+6. VM created via hypervisor (KVM/Hyper-V)
+7. VPC assigns IP, DNS, security group
+8. Monitoring & billing begin tracking
+```
+
+---
+
+## 🗄️ 6. Storage Types
+
+| Type        | Use Case       | Description                        |
+| ----------- | -------------- | ---------------------------------- |
+| Object (S3) | Logs, backups  | Key-value format, no file system   |
+| Block (EBS) | VM disks       | Acts like a hard drive, attachable |
+| File (EFS)  | Shared volumes | NFS mountable shared FS            |
+
+---
+
+## 📡 7. Networking Components
+
+| Component                   | Role                                 |
+| --------------------------- | ------------------------------------ |
+| **VPC**                     | Virtual private network per customer |
+| **Subnets**                 | Public/private isolation             |
+| **Load Balancer**           | Distributes traffic to VMs           |
+| **DNS (Route53)**           | Domain name resolution               |
+| **Firewall/Security Group** | Access rules                         |
+
+---
+
+## 🧠 8. Monitoring & Billing
+
+* **Metrics collection**: CPU, memory, disk I/O, traffic
+* **Billing events**:
+
+  * API call logs
+  * Resource uptime (VM hours)
+  * Storage usage (per GB)
+* **Tools**: Prometheus + Grafana, Loki, CloudWatch, ELK Stack
+
+---
+
+## 🛡️ 9. Security & IAM
+
+* **Multi-tenancy**: VPC isolation + KMS encrypted data
+* **IAM**: Role-based access, scoped permissions
+* **Audit Logs**: Who did what & when
+* **TLS/HTTPS** for all communication
+* **DDoS protection** + firewalls
+
+---
+
+## 🧪 10. Scalability & HA
+
+| Component     | Scaling Strategy                              |
+| ------------- | --------------------------------------------- |
+| API Layer     | Load-balanced + horizontally scalable         |
+| VM Hosts      | VM scheduler places on healthy hosts          |
+| Storage       | S3 auto-scales; block uses volume replication |
+| Network       | DNS & LB with failover                        |
+| Control Plane | Split into stateless microservices            |
+
+---
+
+## 🧾 11. API Design Sample
+
+### **POST /v1/instances**
+
+```json
+{
+  "imageId": "ubuntu-20.04",
+  "instanceType": "t3.medium",
+  "region": "ap-south-1",
+  "volumeSizeGB": 40
+}
+```
+
+### **Response**
+
+```json
+{
+  "vmId": "i-90ab34cd",
+  "status": "initializing"
+}
+```
+
+---
+
+## 🧠 12. Common Interview Cross-Questions
+
+| Question                                            | Answer                                                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **How do you ensure high availability?**            | Use multiple availability zones (AZs), load balancing, and automatic failover               |
+| **How is data consistency handled across regions?** | Object storage (S3) uses eventual consistency; DBs may use replication with quorum writes   |
+| **How do you bill customers?**                      | Track events like VM uptime, storage GBs used, API calls. Aggregate monthly & send invoices |
+| **What happens when a VM host fails?**              | Live migration if possible, else reallocate VM from snapshot                                |
+| **How do you isolate tenants?**                     | VPC isolation + IAM + KMS encryption per customer                                           |
+| **What happens during storage failure?**            | Replicated volumes and snapshots help restore data instantly                                |
+
+---
+
+## 🔁 13. Trade-offs & Optimizations
+
+| Trade-Off                          | Approach                                                    |
+| ---------------------------------- | ----------------------------------------------------------- |
+| Cost vs Availability               | Replicate only critical resources                           |
+| Latency vs Durability              | Allow caching for read-heavy operations                     |
+| Consistency vs Partition Tolerance | Use eventual consistency for object storage                 |
+| Manual vs Infra-as-Code            | Support Terraform and YAML APIs for repeatable provisioning |
+
+---
+
+## 📌 14. Final Summary for Revision
+
+| Area          | Tools / Tech                         |
+| ------------- | ------------------------------------ |
+| Compute       | Hypervisor (KVM/Hyper-V), Docker     |
+| Storage       | S3 (object), EBS (block), EFS (file) |
+| Network       | VPC, ELB, Route53, Firewall          |
+| Monitoring    | Prometheus, Grafana, ELK             |
+| IAM/Security  | OAuth2, RBAC, KMS, Audit logs        |
+| Orchestration | Terraform, REST API                  |
+| Billing       | Metering agents + invoice generator  |
+| Regions       | Multi-AZ, multi-region replication   |

@@ -1,0 +1,212 @@
+## 🧠 1. Problem Statement
+
+Build a system that allows:
+
+* Content creators to **live stream video/audio**
+* Viewers to **watch broadcasts in real-time** with low latency
+* Viewers to interact via **live chat**
+* Automatic **recording and playback**
+* **Scalable delivery** to millions
+* **Adaptive bitrate streaming**
+
+---
+
+## ✅ 2. Requirements
+
+### 🔹 Functional Requirements:
+
+* Start/stop a live stream
+* Video encoding and transcoding (multiple resolutions)
+* Deliver video to users with minimal delay
+* Live chat for viewer interaction
+* Record stream for later viewing (VOD)
+* View count, reactions, comment moderation
+* Recommend live or trending streams
+
+### 🔹 Non-Functional Requirements:
+
+* Ultra-low latency (<5 seconds)
+* High throughput and availability
+* Global scalability
+* Device & bandwidth adaptability
+* CDN-based delivery
+* Data security and DDoS protection
+
+---
+
+## 🏗️ 3. High-Level Architecture
+
+```
++----------------------+         +------------------------+
+|     Streamer App     |-------> |   Ingest Server (RTMP) |
++----------------------+         +-----------+------------+
+                                           |
+                                   +-------v--------+
+                                   | Transcoding     |
+                                   | (FFmpeg/Livepeer)|
+                                   +-------+--------+
+                                           |
+                          +----------------v----------------+
+                          | Segmenter (HLS/DASH Generator) |
+                          +----------------+---------------+
+                                           |
+                          +----------------v----------------+
+                          |     CDN (CloudFront, Akamai)    |
+                          +----------------+----------------+
+                                           |
+                +--------------------------v------------------------+
+                |          Viewer Devices (Mobile/Web/TV)           |
+                +------------------+-------------------------------+
+                                   |
+                  +----------------v------------------+
+                  |     Chat & Reaction Service       |
+                  +----------------+------------------+
+                                   |
+                       +-----------v-----------+
+                       |   Playback Recording   |
+                       +-----------+-----------+
+                                   |
+                    +--------------v-------------+
+                    | Recommendation Engine      |
+                    | Analytics & Viewer Stats   |
+                    +----------------------------+
+```
+
+---
+
+## 🧩 4. Key Components Explained
+
+| Component                | Purpose                                                                 |
+| ------------------------ | ----------------------------------------------------------------------- |
+| **Ingest Server (RTMP)** | Accepts raw video/audio from streamers                                  |
+| **Transcoder**           | Converts stream into multiple resolutions & formats (480p, 720p, 1080p) |
+| **Segmenter**            | Converts video into small chunks (2-10s) using **HLS/DASH**             |
+| **CDN**                  | Caches and delivers video chunks globally to viewers                    |
+| **Viewer Clients**       | HLS/DASH player fetches & plays video chunks                            |
+| **Live Chat**            | Real-time text chat, reactions, emojis                                  |
+| **Playback Recorder**    | Stores stream in S3 for later access                                    |
+| **Analytics/Reco**       | Tracks views, interactions & suggests content                           |
+
+---
+
+## 🎞️ 5. Streaming Protocols Overview
+
+| Protocol     | Use                                                     |
+| ------------ | ------------------------------------------------------- |
+| **RTMP**     | Used by streamers to push stream to server              |
+| **HLS/DASH** | Used to serve video to viewers (segment-based playback) |
+| **WebRTC**   | Used for ultra-low latency (2s), but expensive to scale |
+
+---
+
+## 🧮 6. Metadata & Storage Models
+
+### 📹 Stream Metadata (PostgreSQL/Mongo)
+
+```json
+{
+  "streamId": "abc123",
+  "userId": "streamerX",
+  "title": "Live PUBG Match",
+  "status": "LIVE",
+  "startTime": "2025-07-24T14:00:00Z",
+  "tags": ["gaming", "pubg", "live"],
+  "resolutions": ["480p", "720p", "1080p"]
+}
+```
+
+### 📂 VOD Storage (S3 / Blob)
+
+* Store HLS segments as `/streamerX/streamId/720p/segment1.ts`
+* Store `.m3u8` playlist per resolution
+
+---
+
+## 🔁 7. Live Stream Flow (Real-Time Broadcast)
+
+```
+1. Streamer sends live video (RTMP) to Ingest Server
+2. Transcoder (FFmpeg) creates multi-resolution streams
+3. Segmenter converts into HLS/DASH chunks
+4. CDN caches and delivers chunks globally
+5. Viewer plays stream using HLS/DASH player
+6. Chat Service relays messages via WebSocket
+7. VOD recorder stores segments for replay
+```
+
+---
+
+## ⚡ 8. Performance Optimizations
+
+| Challenge           | Solution                                          |
+| ------------------- | ------------------------------------------------- |
+| High Latency        | Reduce HLS chunk duration (e.g., 2s)              |
+| Bandwidth Variation | Use **adaptive bitrate** (ABR) streaming          |
+| Cold Start          | Pre-warm CDN edges for popular streamers          |
+| Global Delivery     | Use **CDN with edge nodes** (CloudFront, Akamai)  |
+| Scale Chat          | Use sharded WebSocket servers + Redis Pub/Sub     |
+| Failover            | Multi-region ingestion + backup transcoding nodes |
+
+---
+
+## 📚 9. Cross-Questions (with Answers)
+
+---
+
+### ❓ How do you ensure low-latency video delivery?
+
+✅ Use **low-latency HLS** (chunked transfer encoding), short segment duration (1–2s), HTTP/2, and edge caching via CDN.
+
+---
+
+### ❓ What happens if a streamer disconnects mid-stream?
+
+✅ Mark stream as `OFFLINE`, notify users, pause chat. Auto-reconnect if resumed within N seconds. Record partial VOD.
+
+---
+
+### ❓ How is chat handled at scale?
+
+✅ Use WebSocket-based chat servers + Redis pub/sub for broadcasting messages to all viewers in a chat room.
+
+---
+
+### ❓ How do you handle adaptive bitrate switching?
+
+✅ Player gets `.m3u8` playlist with multiple qualities. Player auto-selects based on bandwidth using ABR algorithms.
+
+---
+
+### ❓ How is VOD generated?
+
+✅ The same live segments are stored in S3. Playlist files are updated in real time. After the stream, finalized for replay.
+
+---
+
+### ❓ How do you recommend content to users?
+
+✅ Use collaborative filtering (based on watch history), popularity trends, and contextual matching (tags, region, genre).
+
+---
+
+### ❓ How do you support millions of concurrent viewers?
+
+✅ Use CDN for video delivery, WebSocket shards for chat, scale ingestion/transcoding horizontally, cache aggressively.
+
+---
+
+## 📌 10. Summary Table (Interview Ready)
+
+| Feature        | Tech/Service                              |
+| -------------- | ----------------------------------------- |
+| Ingest Video   | RTMP                                      |
+| Transcoding    | FFmpeg, GPU-powered services              |
+| Video Delivery | HLS/DASH via CDN                          |
+| Chat           | WebSocket + Redis                         |
+| Storage        | S3 / Blob                                 |
+| Playback       | HLS Players (Video.js, Shaka)             |
+| Low Latency    | LL-HLS (Low Latency HLS)                  |
+| Scaling        | CDN + multi-region ingest & WebSocket     |
+| Reco Engine    | ML-based collaborative filtering          |
+| VOD            | Segment + playlist stored in object store |
+

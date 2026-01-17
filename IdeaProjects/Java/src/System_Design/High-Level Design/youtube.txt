@@ -1,0 +1,221 @@
+## ✅ 1. Problem Statement
+
+Design a scalable **On-Demand Video Streaming System** that allows users to:
+
+* Upload and stream videos
+* Browse and search content
+* View recommendations
+* Handle millions of concurrent viewers
+
+---
+
+## 🎯 2. Requirements
+
+### ✅ Functional
+
+* User registration/login
+* Upload videos (multi-format)
+* Stream videos with adaptive quality
+* Like/share/comment
+* View history, trending videos
+* Personalized recommendations
+
+### ✅ Non-Functional
+
+* Low latency & buffering
+* High availability (global scale)
+* Scalability (millions of viewers)
+* Fault tolerance
+* CDN-based delivery
+* Strong security (auth + content protection)
+
+---
+
+## 🧠 3. High-Level Architecture (ASCII)
+
+```
+              ┌────────────────────┐
+              │ Web / Mobile App   │
+              └────────┬───────────┘
+                       ▼
+                ┌─────────────┐
+                │ API Gateway │
+                └────┬────────┘
+                     ▼
+        ┌────────────┴─────────────┐
+        ▼            ▼             ▼
+ Upload Service  Video Service  User Service
+        │             │             │
+        ▼             ▼             ▼
+ ┌────────────┐   ┌────────────┐ ┌─────────────┐
+ │ Object Store│   │ Video DB  │ │ User DB     │
+ └────┬────────┘   └────────────┘ └─────────────┘
+      ▼
+┌───────────────┐
+│ Video Encoder │───► Adaptive Bitrates (240p, 480p, 1080p)
+└───────────────┘
+      ▼
+┌───────────────┐
+│ CDN Provider  │ (Edge Caches, Geo-distribution)
+└───────────────┘
+      ▲
+┌────────────┐
+│ Player SDK │ (HLS/DASH)
+└────────────┘
+
+Optional Services:
+────────────
+Search Service   ← ElasticSearch
+Recommendation Service ← ML + Watch History
+Analytics Service  ← User Behavior Tracking
+Notification Service ← Email/Push via Kafka
+```
+
+---
+
+## 🔁 4. Key Workflows
+
+### 📥 Video Upload Flow
+
+1. User uploads video (via chunked REST upload)
+2. Stored in **Object Store** (e.g., AWS S3)
+3. Asynchronously triggers **Encoding Service**
+4. Encoded in multiple resolutions (adaptive bitrate)
+5. Transcoded files pushed to **CDN**
+6. DB entry created with metadata
+
+### ▶️ Video Playback Flow
+
+1. User opens a video page
+2. Metadata fetched from **Video DB**
+3. CDN provides HLS/DASH chunks
+4. Player selects bitrate based on bandwidth
+5. View count + watch time sent to Analytics
+
+---
+
+## 🔎 5. Sample APIs
+
+### POST `/upload`
+
+```json
+{
+  "title": "Spring Boot Tutorial",
+  "tags": ["Java", "Spring"],
+  "file": "<binary-chunked>"
+}
+```
+
+### GET `/video/{id}`
+
+```json
+{
+  "title": "Spring Boot Tutorial",
+  "streams": {
+    "240p": "cdn.netflix.com/video/240p.m3u8",
+    "720p": "cdn.netflix.com/video/720p.m3u8"
+  },
+  "views": 10023
+}
+```
+
+---
+
+## 🗃 6. Database Design (Simplified)
+
+### Video Table
+
+| Column       | Type                      |
+| ------------ | ------------------------- |
+| video\_id    | UUID                      |
+| title        | VARCHAR                   |
+| description  | TEXT                      |
+| owner\_id    | UUID                      |
+| upload\_time | TIMESTAMP                 |
+| status       | ENUM (UPLOADING, ENCODED) |
+| cdn\_links   | JSON                      |
+
+### User Table
+
+* `user_id`, `name`, `email`, `password`, `subscription_tier`
+
+### Watch History
+
+* `user_id`, `video_id`, `watched_duration`, `last_accessed`
+
+### Comment Table
+
+* `video_id`, `user_id`, `comment`, `timestamp`
+
+---
+
+## 🧠 7. Common Cross-Questions
+
+| Question                                          | Answer                                                |
+| ------------------------------------------------- | ----------------------------------------------------- |
+| **How do you handle millions of video requests?** | CDN offloads traffic, stores content closer to user   |
+| **How is adaptive streaming handled?**            | HLS/DASH + player SDK picks best resolution           |
+| **How do you transcode uploaded videos?**         | Background jobs encode to multiple bitrates (FFmpeg)  |
+| **What if encoding fails?**                       | Retry + status = "FAILED" shown to user               |
+| **How do you protect videos from piracy?**        | Use signed URLs, tokenized links, DRM integration     |
+| **How do you scale recommendations?**             | Use offline ML batch + online hybrid approach         |
+| **How are thumbnails created?**                   | Extracted via frame capture during encoding           |
+| **How do you avoid buffering?**                   | Use adaptive bitrate + prefetching + CDN edge caching |
+
+---
+
+## 🧰 8. Tech Stack (Java-Friendly)
+
+| Layer          | Technology                                 |
+| -------------- | ------------------------------------------ |
+| Backend        | Java + Spring Boot                         |
+| DB             | PostgreSQL / Cassandra (for views/history) |
+| Cache          | Redis (popular videos, user sessions)      |
+| Video Encoding | FFmpeg, AWS Elastic Transcoder             |
+| Storage        | AWS S3 / GCP Cloud Storage                 |
+| CDN            | CloudFront / Akamai / Fastly               |
+| Queue          | Kafka / RabbitMQ                           |
+| Analytics      | Apache Druid / ClickHouse                  |
+| Auth           | OAuth2 + JWT                               |
+| Player         | HLS.js, Dash.js (frontend)                 |
+
+---
+
+## ⚙️ 9. Performance & Scaling Tips
+
+| Feature             | Approach                                    |
+| ------------------- | ------------------------------------------- |
+| High upload traffic | Chunked uploads, object storage             |
+| Encoding            | Asynchronous jobs (batch workers, FFmpeg)   |
+| View spikes         | CDN + Cache + Load Balancer                 |
+| Trending detection  | Stream analytics on view logs               |
+| Search              | ElasticSearch with fuzzy + autocomplete     |
+| Resilience          | Retry queues for encoding, circuit breakers |
+
+---
+
+## 🔐 10. Security
+
+* ✅ HTTPS enforced
+* ✅ JWT for session security
+* ✅ Role-based access (viewer, uploader, admin)
+* ✅ Signed URLs for secure video access
+* ✅ Rate limiting via API Gateway
+* ✅ DRM for premium content
+
+---
+
+## 🧾 11. Quick Revision Sheet
+
+| Feature        | Tech                     |
+| -------------- | ------------------------ |
+| Upload/Storage | Multipart upload to S3   |
+| Encoding       | FFmpeg jobs, async       |
+| Video DB       | PostgreSQL / MongoDB     |
+| Playback       | CDN + HLS/DASH           |
+| Comments/Likes | Write-optimized DB       |
+| History        | Cassandra (high writes)  |
+| Recommender    | ML model + history       |
+| Notifications  | Kafka + Email/SMS        |
+| Thumbnails     | Captured during encoding |
+| Security       | JWT + Signed URLs + DRM  |

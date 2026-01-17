@@ -1,0 +1,116 @@
+tele https://t.me/s/learnhubbyshehzad?q=dhruv+rathee
+AI  https://drive.google.com/drive/folders/1EbaTw3gZp36YtSkouV6Jv0ySp7-n-NT7
+TIME https://drive.google.com/drive/folders/16fpwyeXQNUWKcwm7mZDvAG1NoYfkbdXb
+
+home workout : https://chatgpt.com/share/681e1182-d758-8008-93d6-63c0f22af550
+resume : https://sagorvns.github.io/cv/
+system degine : https://chatgpt.com/share/681f5be5-2940-8008-ad17-14e203ece62c
+-------------------------------------------------------------------------------------------------------------------------------------
+
+Java 8 was a game-changer with streams and lambdas, enabling functional programming and introducing a more declarative coding style.
+
+Java 11 added important productivity features like the var keyword for local variable inference, HTTP Client API for better REST calls, 
+and several GC improvements. It also removed outdated APIs and modules, making Java leaner and more modular.
+
+Java 17 became the new baseline, bringing powerful syntax improvements like records, sealed classes, text blocks, and better garbage
+ collectors such as ZGC and Shenandoah.
+
+Java 21 simplified high-concurrency coding through virtual threads (Project Loom) and structured concurrency, making multithreaded 
+applications easier to write and debug.
+
+Java 24 enhances developer experience further, introducing string templates, record patterns, and native interop improvements via 
+Project Panama — showing Java’s evolution toward expressiveness seen in modern languages like Kotlin and Python.
+
+-------------------------------------------------------------------------------------------------------------------------------------
+
+### 🔹 **Popular Data Structures**
+
+| Category                        | Examples                   | When to Use                                |
+| ------------------------------- | -------------------------- | ------------------------------------------ |
+| **Array**                       | Simple list of items       | When order matters, index access is needed |
+| **String**                      | Sequence of characters     | Pattern problems, substring search         |
+| **Linked List**                 | Singly, Doubly             | Insert/delete in constant time             |
+| **Stack**                       | LIFO                       | Reversals, backtracking, parsing           |
+| **Queue**                       | FIFO, Deque, PriorityQueue | Scheduling, BFS                            |
+| **Hash Map / Set**              | HashMap, HashSet           | Fast lookups, uniqueness                   |
+| **Tree**                        | Binary Tree, BST, AVL      | Hierarchies, sorted data                   |
+| **Heap**                        | Min/Max Heap               | Top-k elements, priority                   |
+| **Graph**                       | Adjacency list/matrix      | Pathfinding, networks                      |
+| **Trie**                        | Prefix tree                | Auto-complete, dictionary                  |
+| **Segment Tree / Fenwick Tree** | Range queries, updates     | Sum/min/max in subarrays                   |
+
+### 🔹 **Popular Algorithms**
+
+| Category                     | Examples                             | Use Case                                       |
+| ---------------------------- | ------------------------------------ | ---------------------------------------------- |
+| **Sorting**                  | QuickSort, MergeSort, HeapSort       | Organize data                                  |
+| **Searching**                | Binary Search                        | Fast search in sorted data                     |
+| **Recursion / Backtracking** | N-Queens, Sudoku, DFS                | All combinations/paths                         |
+| **Dynamic Programming (DP)** | Knapsack, LCS                        | Optimal substructure + overlapping subproblems |
+| **Greedy**                   | Activity Selection, Kruskal’s        | Local choice = global optimum                  |
+| **Divide and Conquer**       | MergeSort, QuickSort                 | Recursively solve parts                        |
+| **Graph Algorithms**         | BFS, DFS, Dijkstra, Floyd-Warshall   | Pathfinding, components                        |
+| **Union Find (DSU)**         | Kruskals, connectivity              | Detect cycle, group management                 |
+| **Sliding Window**           | Max sum subarray, substring problems | Contiguous window with constraints             |
+| **Two Pointer**              | Pair sum, sort & merge               | Process from two ends                          |
+| **Topological Sort**         | Task scheduling (DAG)                | Dependencies                                   |
+| **Bit Manipulation**         | XOR tricks, power of 2               | Efficient binary ops                           |
+
+### 🔍 **How to Identify Which Algorithm or DS Is Used**
+
+| Clue in Problem                   | Likely DSA or Technique   |
+| --------------------------------- | ------------------------- |
+| “Find shortest path”              | Graph + Dijkstra/BFS      |
+| “All combinations / subsets”      | Backtracking / Recursion  |
+| “Max sum / min operations”        | DP / Sliding Window       |
+| “Real-time insert/delete min/max” | Heap / PriorityQueue      |
+| “Look up values fast”             | HashMap / Set             |
+| “Sorted array + search”           | Binary Search             |
+| “Hierarchy or parent-child”       | Tree / DFS                |
+| “Cycles, connected components”    | Union-Find / DFS          |
+| “Substrings with constraints”     | Sliding Window / HashMap  |
+| “Range sum queries”               | Prefix Sum / Segment Tree |
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+## ✅ **1. Secure Your Java API**
+
+| Tip                              | Explanation                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| 🔒 **Use HTTPS**                 | Always encrypt communication.                                                       |
+| 🔐 **Use JWT or OAuth 2.0**      | For authentication and authorization. Spring Security + JWT = secure and stateless. |
+| 🚫 **Validate Input**            | Prevent SQL Injection / XSS using validation (`@Valid`, regex, etc.)                |
+| 🧪 **Rate Limiting**             | Prevent abuse using IP-based rate limiters (e.g., Bucket4J, Redis, Gateway).        |
+| 🔍 **Log Access & Errors**       | Use SLF4J, but avoid logging sensitive data (e.g., passwords, tokens).              |
+| 🔐 **CORS Config**               | Only allow trusted origins to access your APIs.                                     |
+| 👥 **Role-Based Access Control** | Use `@PreAuthorize("hasRole('ADMIN')")` to restrict endpoints.                      |
+| 📦 **Use Secrets Manager**       | Don't hardcode passwords; use env vars or tools like Vault or AWS Secrets Manager.  |
+
+## 🚀 **2. Make Your API Fast (Performance Tips)**
+
+| Tip                               | Explanation                                                                       |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| 🧠 **Use DTOs**                   | Don’t expose entities. Use lightweight response objects to send only needed data. |
+| ⚡ **Enable Caching**             | Use `@Cacheable` with Redis or Caffeine for repeated GET requests.                |
+| 🛑 **Avoid N+1 Problem**          | Use `@EntityGraph` or batch fetching in JPA.                                      |
+| 🧵 **Async Calls**                | Use `@Async` or reactive stack (WebFlux) for non-blocking ops.                    |
+| 📉 **Database Indexing**          | Create indexes on frequently filtered columns.                                    |
+| 🧹 **Connection Pooling**         | Use HikariCP (Spring Boot default) for fast DB access.                            |
+| 🏎 **Pagination**                 | Use `Pageable` in Spring Data to avoid loading 10,000 records at once.            |
+| 🔄 **Use GZIP**                   | Compress HTTP responses for faster transfer. Enable in Spring Boot with:          |
+| `server.compression.enabled=true` |                                                                                   |
+| ⏱ **Timeouts**                   | Set timeouts for DB, REST calls to avoid long hangs.                              |
+| 💬 **Minimize JSON size**         | Exclude unused fields using `@JsonIgnore`, `@JsonView`, or custom DTOs.           |
+
+## 🗣️ How to Answer in Interview
+
+✅ **Example Answer**:
+
+> "To secure the API, I use JWT-based stateless auth with Spring Security, validate all inputs, and restrict access using roles. For performance, I apply caching, use DTOs, enable connection pooling via HikariCP, and ensure queries are optimized with indexes and pagination."
+
+✅ Bonus Points:
+
+* Mention tools: **Spring Boot, Redis, Hibernate**, **Resilience4j**, **Bucket4J**, **Prometheus + Grafana**
+* Add: “I monitor latency and errors using logs and APM tools like **New Relic** or **Datadog**”
+
+-----------------------------------------------------------------------------------------------------------------------------------

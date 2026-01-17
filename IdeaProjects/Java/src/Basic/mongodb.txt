@@ -1,0 +1,87 @@
+# Let's create a one-page MongoDB cheat sheet as a text file for interview prep
+
+cheat_sheet = """
+============================
+    MongoDB Cheat Sheet
+============================
+
+1️⃣ Start Mongo Shell
+---------------------
+mongosh           # Start Mongo shell (old: mongo)
+
+2️⃣ Database Commands
+---------------------
+show dbs                      # List all databases
+use mydb                      # Switch/Create database
+db                            # Show current database
+db.dropDatabase()             # Delete current database
+
+3️⃣ Collection Commands
+------------------------
+show collections              # List collections
+db.createCollection("users")  # Create collection
+db.users.drop()               # Delete collection
+
+4️⃣ Insert Documents
+---------------------
+db.users.insertOne({ name: "John", age: 30 });
+db.users.insertMany([
+  { name: "Alice", age: 25 },
+  { name: "Bob", age: 28 }
+]);
+
+5️⃣ Query Documents
+-------------------
+db.users.find();                       # All docs
+db.users.find().pretty();              # Formatted
+db.users.find({ name: "Alice" });      # Filter
+db.users.find({ age: { $gt: 25 } });   # age > 25
+db.users.find({ age: { $gte: 25, $lte: 30 } }); # 25 ≤ age ≤ 30
+db.users.find({}, { name: 1, _id: 0 }); # Projection
+
+6️⃣ Update Documents
+--------------------
+db.users.updateOne(
+  { name: "Alice" },
+  { $set: { age: 26 } }
+);
+db.users.updateMany(
+  { age: { $lt: 30 } },
+  { $inc: { age: 1 } }
+);
+
+7️⃣ Delete Documents
+--------------------
+db.users.deleteOne({ name: "Bob" });
+db.users.deleteMany({ age: { $gt: 30 } });
+
+8️⃣ Sort, Limit, Skip
+---------------------
+db.users.find().sort({ age: 1 });   # Ascending
+db.users.find().sort({ age: -1 });  # Descending
+db.users.find().limit(5);           # Limit 5
+db.users.find().skip(5);            # Skip 5
+
+9️⃣ Aggregation
+---------------
+db.users.aggregate([
+  { $group: { _id: "$age", count: { $sum: 1 } } },
+  { $sort: { count: -1 } }
+]);
+
+🔟 Index
+--------
+db.users.createIndex({ name: 1 });
+db.users.getIndexes();
+
+============================
+Tip: Practice queries in MongoDB Compass or shell for speed in interviews.
+============================
+"""
+
+# Save to file
+file_path = "/mnt/data/mongodb_cheat_sheet.txt"
+with open(file_path, "w") as f:
+    f.write(cheat_sheet)
+
+file_path

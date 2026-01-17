@@ -1,0 +1,243 @@
+## ✅ 1. Problem Statement
+
+Design a **Payment Gateway** that allows:
+
+* Online payments via cards, UPI, wallets, bank transfers
+* Merchant onboarding
+* Secure payment processing
+* Webhooks for success/failure callbacks
+* Refunds, retries, settlement & reconciliation
+
+---
+
+## 🎯 2. Requirements
+
+### ✅ Functional Requirements
+
+* Process credit/debit card, UPI, wallets
+* Integrate with banks/card networks
+* Handle failures, retries, refunds
+* Send callbacks (webhooks) to merchants
+* View transactions, generate invoices
+* Tokenization & PCI compliance
+
+### ✅ Non-Functional Requirements
+
+* **High availability** and **low latency**
+* **PCI-DSS** security compliance
+* **Idempotency** of requests
+* Real-time **fraud detection**
+* **ACID** compliance for transactions
+* High throughput (thousands/sec)
+
+---
+
+## 🧠 3. High-Level Architecture (ASCII Diagram)
+
+```
++-------------------+
+|  Merchant Website |
++--------+----------+
+         |
+         ▼
++----------------------+
+|    Payment Gateway   |
+| (API Gateway + Auth) |
++----------------------+
+         |
+         ▼
++----------------------+
+|  Payment Orchestrator|
++----------------------+
+   |           |           |
+   ▼           ▼           ▼
+Card Vault  Payment   Fraud Detection
+(Tokenized) Processor   Engine
+            |              |
+            ▼              ▼
+        Card/UPI/       Rules DB / ML
+        Wallet/Bank
+            |
+            ▼
++-----------------------+
+|  Bank/Card Networks   |
++-----------------------+
+         |
+         ▼
++------------------------+
+|  Settlement & Ledger   |
++------------------------+
+         |
+         ▼
++------------------------+
+| Webhook Notification   |
++------------------------+
+
++------------------------+
+| Admin & Reporting APIs |
++------------------------+
+```
+
+---
+
+## 🧩 4. Component Breakdown
+
+| Component                | Role                                          |
+| ------------------------ | --------------------------------------------- |
+| **API Gateway**          | Exposes secure endpoints (TLS, OAuth, JWT)    |
+| **Payment Orchestrator** | Coordinates the flow across payment methods   |
+| **Vault**                | Stores card data securely (tokenization)      |
+| **Payment Processor**    | Connects to banks, handles approval           |
+| **Fraud Detection**      | Rules/ML to block suspicious transactions     |
+| **Settlement & Ledger**  | Tracks credits/debits, manages reconciliation |
+| **Webhook System**       | Sends async updates to merchants              |
+| **Admin/Reports**        | Merchant dashboard, analytics                 |
+
+---
+
+## 📟 5. Payment Flow
+
+1. **Merchant** calls `POST /payments`
+2. **API Gateway** verifies credentials + rate limits
+3. **Payment Orchestrator** picks payment method (card/UPI/wallet)
+4. **Vault** fetches tokenized card, adds CVV (if needed)
+5. **Processor** contacts the relevant **bank or PSP**
+6. **Fraud engine** evaluates score + flags if needed
+7. If **approved**, mark transaction "SUCCESS"
+8. Update **Ledger** and **settle** funds
+9. Trigger **webhook** to merchant
+10. Retry failures with backoff + track status
+
+---
+
+## 🔐 6. Security and Compliance
+
+| Area                | Detail                                                  |
+| ------------------- | ------------------------------------------------------- |
+| PCI Compliance      | No card details stored without encryption; tokenization |
+| TLS Everywhere      | All APIs are HTTPS only                                 |
+| 3DS / OTP / UPI PIN | Extra security layer for auth                           |
+| Vault               | HSM-based or PCI-certified token storage                |
+| Idempotency Keys    | Prevent double charges on retries                       |
+
+---
+
+## 🧾 7. API Design Sample
+
+### 🔸 `POST /v1/payments`
+
+**Request:**
+
+```json
+{
+  "amount": 1500,
+  "currency": "INR",
+  "paymentMethod": "card",
+  "cardToken": "tok_23ab4...",
+  "merchantId": "m_123",
+  "idempotencyKey": "xyz-456"
+}
+```
+
+**Response:**
+
+```json
+{
+  "transactionId": "tx_91234",
+  "status": "PENDING"
+}
+```
+
+---
+
+## 🧮 8. Database Design (Simplified)
+
+### Tables:
+
+#### `transactions`
+
+* `id`, `merchant_id`, `amount`, `status`, `method`, `created_at`
+
+#### `payment_methods`
+
+* `id`, `type`, `vault_token`, `user_id`, `created_at`
+
+#### `settlements`
+
+* `settlement_id`, `merchant_id`, `amount`, `date`, `status`
+
+#### `webhooks`
+
+* `webhook_id`, `merchant_id`, `url`, `event`, `retry_count`, `status`
+
+#### `ledgers`
+
+* `entry_id`, `type`, `amount`, `related_txn`, `timestamp`
+
+---
+
+## 📡 9. Webhooks + Retry
+
+* Queued using **Kafka/RabbitMQ**
+* Retry with **Exponential Backoff** (e.g., 1s → 5s → 30s)
+* Retries max 5 times, then marks as failed
+* Supports signature-based verification for merchant security
+
+---
+
+## 🧠 10. Common Interview Cross-Questions
+
+| Question                                      | Answer                                                    |
+| --------------------------------------------- | --------------------------------------------------------- |
+| **How do you ensure idempotency?**            | Clients send an `idempotencyKey`; deduplicated by DB      |
+| **What if bank API is down?**                 | Queue transaction as `PENDING`, retry after backoff       |
+| **How is fraud prevented?**                   | Rule engine + ML models evaluate real-time patterns       |
+| **How do you handle duplicate transactions?** | Use idempotency + transaction hashing                     |
+| **What if a webhook fails?**                  | Retry via exponential backoff queue                       |
+| **How are refunds handled?**                  | Initiated via API → ledger reverse entry → notify bank    |
+| **How do you prevent double billing?**        | ACID transactions in DB, token + idempotency key required |
+
+---
+
+## 🔁 11. Scaling Strategy
+
+| Layer        | Strategy                                           |
+| ------------ | -------------------------------------------------- |
+| API Gateway  | Load balancer + autoscaling                        |
+| Orchestrator | Stateless microservices                            |
+| Fraud Engine | Cache rules, use stream processors                 |
+| Database     | Read replicas, sharding by merchant ID             |
+| Vault        | External provider (e.g., AWS KMS, HashiCorp Vault) |
+| Webhooks     | Asynchronous, retry queue                          |
+
+---
+
+## 🧠 12. Technology Stack
+
+| Area          | Tech                         |
+| ------------- | ---------------------------- |
+| Language      | Java + Spring Boot           |
+| DB            | PostgreSQL (ACID)            |
+| Message Queue | Kafka / RabbitMQ             |
+| Security      | Vault, TLS, OAuth2           |
+| Infra         | Docker + Kubernetes          |
+| Monitoring    | Prometheus, Grafana, ELK     |
+| Caching       | Redis for token/cache lookup |
+
+---
+
+## 📌 13. Summary Sheet for Revision
+
+| Component           | Notes                                         |
+| ------------------- | --------------------------------------------- |
+| API + Auth          | OAuth2 + JWT + TLS                            |
+| Vault               | Tokenizes card data (PCI)                     |
+| Fraud Detection     | Rule engine + ML + scoring                    |
+| Payment Processor   | Interfaces with banks                         |
+| Ledger + Settlement | Maintains consistency and transaction history |
+| Retry Queue         | For failed payments, webhooks, bank issues    |
+| Idempotency         | Key for safe retries                          |
+| DB                  | ACID guarantees, partitioned by merchant\_id  |
+| Monitoring          | Track transaction flow, failures, latency     |
+| Webhook System      | Async delivery + retries                      |
+
